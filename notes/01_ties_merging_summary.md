@@ -22,9 +22,9 @@ TIES addresses these problems through a three-step procedure.
 
 ### 3.1 Step 1: Trim
 
-The first step removes redundant updates by keeping only the top-$k\%$ largest parameter changes (by absolute magnitude) in each task vector and setting the remaining values to zero.
+The first step removes redundant updates by keeping only the top-$k$% largest parameter changes (by absolute magnitude) in each task vector and setting the remaining values to zero.
 
-$$\hat{\tau}_t = \text{keep\_top\_k}(\tau_t, k)$$
+$$\hat{\tau}_t = \text{keep-top-k}(\tau_t, k)$$
 
 where:
 - $\tau_t$ is the task vector
@@ -46,7 +46,7 @@ The third step averages only the task vector values whose signs agree with the e
 
 The aligned task set is defined as:
 
-$$A_p = \left\{ t : \mathrm{sign}(\hat{\tau}_t[p]) = \gamma_m[p] \right\}$$
+$$A_p = \{ t : \mathrm{sign}(\hat{\tau}_t[p]) = \gamma_m[p] \}$$
 
 The final merged task vector is then computed as:
 
