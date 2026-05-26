@@ -1,0 +1,1 @@
+Cross-architecture merging without significant compute — can you merge a fine-tune from one model family (e.g., Llama) with a fine-tune from another (e.g., Qwen) while preserving accuracy? Open problem; existing methods need permutation alignment or distillation. Sub-question that might be tractable: merging across scales within a single family.
