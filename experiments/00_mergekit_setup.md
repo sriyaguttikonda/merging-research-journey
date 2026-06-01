@@ -70,8 +70,35 @@
 - Filters can restrict parameters to specific layer types (e.g., `filter: mlp`)
 - `normalize: true` rescales merged weights for stability
 
-## Next steps
-- Continue reading MergeKit README and example configs
-- Identify 3-5 specific questions about merge methods
-- Pick two small fine-tuned models for first merge (likely T5-Base or Llama-3.2-1B variants)
-- Plan first merge: start with simple linear merge before attempting TIES
+## First successful merge
+
+Date: 2026-06-01
+
+### Config used
+```yaml
+models:
+  - model: google/t5-v1_1-base
+    parameters:
+      weight: 0.5
+  - model: google/t5-v1_1-base
+    parameters:
+      weight: 0.5
+merge_method: linear
+dtype: float16
+```
+
+### Result
+- Output directory: `./merged_model/`
+- Merged model size: 593 MB (float16)
+- Files produced: model.safetensors, config.json, tokenizer files, mergekit_config.yml
+- Status: Success
+
+### What this proves
+- MergeKit installation is functional end-to-end
+- Config syntax is correct
+- Pipeline can download, merge, and save models
+- Output is a loadable Hugging Face model
+
+### Next steps
+- Run a non-trivial merge: two different fine-tuned T5 variants
+- Then try Task Arithmetic and TIES on the same model pair
