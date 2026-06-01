@@ -70,35 +70,24 @@
 - Filters can restrict parameters to specific layer types (e.g., `filter: mlp`)
 - `normalize: true` rescales merged weights for stability
 
-## First successful merge
+## First successful merge: 2026-06-01
 
-Date: 2026-06-01
+### What worked
+- Linear merge between two copies of `google/t5-v1_1-base` (weights 0.5 + 0.5)
+- Output saved to ./merged_model/ — 593MB safetensors file
+- Model loads successfully via `T5ForConditionalGeneration.from_pretrained()`
+- Parameter count: 296,926,464 (matches T5-v1.1-base)
 
-### Config used
-```yaml
-models:
-  - model: google/t5-v1_1-base
-    parameters:
-      weight: 0.5
-  - model: google/t5-v1_1-base
-    parameters:
-      weight: 0.5
-merge_method: linear
-dtype: float16
-```
+### Initial error and resolution
+- First attempt with `google-t5/t5-base` failed with tensor mismatch error
+- T5-v1 has single `DenseReluDense.wi` weight
+- T5-v1.1 has gated `wi_0` and `wi_1` weights — MergeKit expects this variant
+- Lesson: model version matters; v1 and v1.1 are not interchangeable
 
-### Result
-- Output directory: `./merged_model/`
-- Merged model size: 593 MB (float16)
-- Files produced: model.safetensors, config.json, tokenizer files, mergekit_config.yml
-- Status: Success
+### Warnings (informational, not blocking)
+- Triton not detected — CPU mode, not relevant
+- Tied weights warning — embeddings stored separately, model still loads correctly
 
-### What this proves
-- MergeKit installation is functional end-to-end
-- Config syntax is correct
-- Pipeline can download, merge, and save models
-- Output is a loadable Hugging Face model
-
-### Next steps
-- Run a non-trivial merge: two different fine-tuned T5 variants
-- Then try Task Arithmetic and TIES on the same model pair
+### Status
+- MergeKit infrastructure: fully functional
+- Ready for next step: merging two *different* fine-tuned models
