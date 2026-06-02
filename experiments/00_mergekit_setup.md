@@ -125,3 +125,33 @@ from the fine-tune while producing outputs distinct from both inputs.
 - Output content isn't a simple average of input model outputs
 - One example is a demonstration, not evaluation - real eval needs many inputs
   and quantitative metrics
+## Week 6 Task 1: Cross-input testing
+
+### Test text
+EU-Japan trade agreement news paragraph (different style from previous science test)
+
+### Three outputs
+
+FLAN-T5-base:
+- 1 terse sentence
+- Captured main event + tariff fact
+
+Summarization fine-tune:
+- 3 sentences  
+- Captured economic benefit, critics, supporters
+- Did not include tariff percentage
+
+Merged model (0.5 + 0.5):
+- 3 sentences
+- Captured tariff fact (FLAN-style) AND critics/supporters debate (fine-tune-style)
+- Made a small factual error (said "eliminates 90 percent of goods" instead of "eliminates tariffs on 90 percent of goods")
+
+### Observation
+The merged model showed consistent behavior across both science and news inputs:
+- Always produced multi-sentence summaries (like the fine-tune)
+- Pulled fact-level details (like FLAN)
+- Combined elements from both parents
+
+### Caveat
+Small factual error in merged output suggests merging can disturb specific 
+details. Not catastrophic on this example but worth tracking in future evaluations.
