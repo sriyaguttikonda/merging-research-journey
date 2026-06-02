@@ -91,3 +91,37 @@
 ### Status
 - MergeKit infrastructure: fully functional
 - Ready for next step: merging two *different* fine-tuned models
+
+## Week 6: First meaningful merge
+
+Date: 2026-06-02
+
+### Setup
+- Models merged:
+  - google/flan-t5-base (generalist instruction-tuned)
+  - mrm8488/flan-t5-base-finetuned-openai-summarize_from_feedback (summarization specialist)
+- Method: linear merge, 0.5 + 0.5 weights
+- dtype: float16
+- Compute: CPU
+
+### Result
+- Merge ran successfully on first attempt
+- Output: ./merged_flan_model (~594MB)
+- Model loads correctly with 296,926,464 parameters
+
+### Qualitative comparison on summarization task
+Tested all three models on a paragraph about James Webb Space Telescope.
+
+- FLAN-T5-base produced a single terse sentence
+- Summarization fine-tune produced 3 detailed sentences
+- Merged model produced 4 sentences with the most factual content of the three
+
+The merged model inherited summarization behavior (multi-sentence output)
+from the fine-tune while producing outputs distinct from both inputs.
+
+### What I learned
+- A linear merge between meaningfully different fine-tunes produces a model
+  that behaves like a blend of both
+- Output content isn't a simple average of input model outputs
+- One example is a demonstration, not evaluation - real eval needs many inputs
+  and quantitative metrics
