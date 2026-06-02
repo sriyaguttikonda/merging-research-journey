@@ -155,3 +155,33 @@ The merged model showed consistent behavior across both science and news inputs:
 ### Caveat
 Small factual error in merged output suggests merging can disturb specific 
 details. Not catastrophic on this example but worth tracking in future evaluations.
+## Week 6 Task 2: Weight ratio comparison
+
+### Setup
+- Three merge ratios tested: 0.7/0.3, 0.5/0.5, 0.3/0.7 (FLAN/fine-tune)
+- Same test input as Task 1 (EU-Japan trade news paragraph)
+- Compared against pure FLAN and pure fine-tune baselines
+
+### Prediction
+Higher FLAN weight → more terse, FLAN-like outputs
+Higher fine-tune weight → more detailed, fine-tune-like outputs
+Expected smooth gradient between the two extremes
+
+### Result
+The prediction was partially wrong. All three merged ratios produced 
+similar multi-sentence summaries with critics/supporters structure - 
+none showed clearly "more FLAN-like" or "more fine-tune-like" behavior.
+
+The fine-tune's behavioral signature appears even at 0.3 weight.
+
+### Failure modes observed
+- 0.7/0.3 and 0.5/0.5: dropped "tariffs on" - factual error
+- 0.3/0.7: produced a stutter ("90 percent tariffs on more than 90 percent")
+- Pure models had no such errors
+
+### Interpretation
+- Linear merging does not produce smooth behavioral gradients
+- Fine-tune influence is disproportionately strong relative to its weight
+- Merging can introduce new failure modes not present in either input
+- This empirically demonstrates the interference problem that TIES, DARE, 
+  and other methods are designed to address
