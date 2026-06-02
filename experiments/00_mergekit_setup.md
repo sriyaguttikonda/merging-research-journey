@@ -185,3 +185,34 @@ The fine-tune's behavioral signature appears even at 0.3 weight.
 - Merging can introduce new failure modes not present in either input
 - This empirically demonstrates the interference problem that TIES, DARE, 
   and other methods are designed to address
+## Week 7: TIES vs Linear comparison
+
+### Setup
+- TIES merge with density 0.2, base_model: google/t5-v1_1-base
+- Tested on EU-Japan trade news paragraph
+- Compared against linear merges and pure models
+
+### Reproducible findings (verified by re-running)
+- Linear merges all produced clean, factually mostly-correct summaries
+- TIES density 0.2 produced incoherent output ("Europe's farmers say they can't 
+  protect small farmers...") — missing main event, garbled meaning
+- TIES density 0.5 produced cleaner output but still slightly degraded vs linear
+- Result is reproducible: re-running the test produced the same outputs
+
+### Hypothesis
+TIES's density 0.2 default may not transfer well to merging similar models 
+(both FLAN-derived). When task vectors heavily overlap, aggressive trimming 
+may discard shared useful information rather than resolving conflicts.
+
+### What I learned
+- Paper defaults don't always transfer to new setups
+- Reproducibility matters - re-running confirmed the finding wasn't noise  
+- One input still isn't enough for strong claims, but consistent reproduction 
+  on one input is more reliable than I initially thought
+- Genuine negative results are valuable - they point to questions worth asking
+
+### Open question for future work
+Why does TIES fail on similar models? Possible follow-ups:
+- Try FLAN as base_model instead of T5-v1.1-base
+- Try higher density values (0.7, 0.9)
+- Test with less similar models (different tasks)
