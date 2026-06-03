@@ -296,8 +296,39 @@ orthogonal (different task domains). When source models are highly similar
 - Unrelated text gives ~0.13 ROUGE-1 (common word noise floor), 
   0.00 ROUGE-2 (bigrams don't coincidentally match)
 
-### Tomorrow (Day 3)
-- Build the evaluation loop
-- Run one model end-to-end on the 50 examples
-- Verify pipeline produces real ROUGE scores
-- Then scale to all 8 models
+## Week 9 — Day 3: Building evaluation pipeline
+
+### Built
+- `evaluate_model()` function that runs a model on the 50-example subset 
+  and returns averaged ROUGE-1/2/L scores
+- Uses beam search (num_beams=4), max_length=128 for generation
+
+### Critical finding during pipeline testing
+First evaluation of FLAN-T5-base produced low scores (ROUGE-1: 0.18) with 
+generated summaries that were broken or near-empty.
+
+Sanity check showed example output "Palestinian authority's authority." 
+when the reference was a real two-sentence summary.
+
+Tested four prompt formats. Found that prompt format dramatically affects 
+output quality:
+- "summarize: {article}" → broken outputs
+- "Article: ... Summary:" → quotes, not summaries  
+- "Please write a short summary of this article: {article}" → coherent summaries
+
+### Updated evaluation
+Re-ran FLAN-T5-base with "Please write a short summary..." prompt:
+- ROUGE-1: 0.1819 → 0.2600 (+43%)
+- ROUGE-2: 0.0773 → 0.1233 (+60%)
+- ROUGE-L: 0.1549 → 0.2105 (+36%)
+
+### Methodological note
+Prompt format affects ROUGE scores by 36-60% with no other changes.
+This means: any merge evaluation must hold prompt format constant across 
+all models being compared. Using different prompts per model would mix 
+prompt effects with merge effects.
+
+All 8 models will be evaluated with the same "Please write a short summary" prompt.
+
+### Tomorrow (Day 4)
+Run remaining 7 models through the same pipeline, build comparison table.
