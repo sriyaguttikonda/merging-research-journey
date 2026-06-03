@@ -275,7 +275,29 @@ orthogonal (different task domains). When source models are highly similar
 - Each example has 'article' (full text), 'highlights' (reference summary), 'id'
 - Confirmed dataset loads correctly with a sample example
 
-### Tomorrow (Day 2)
-- Decide on evaluation subset size (probably 50-100 examples for tractable runtime)
-- Plan the evaluation loop structure
-- Start setting up ROUGE evaluation
+## Week 9 — Day 2: ROUGE setup
+
+### Decisions
+- Evaluation subset: first 50 examples of CNN/DailyMail test split
+- Deterministic (range(50)) for fair model comparison and reproducibility
+- All 8 merged models will be evaluated on these same 50 articles
+
+### Data characteristics (50-example subset)
+- Article length: 630 to 9,257 chars (mean 3,608)
+- Summary length: 104 to 346 chars (mean 199)
+- Note: most articles exceed T5-base's 512-token context window
+- Articles will be truncated during tokenization; evaluation effectively 
+  measures "summarize the first ~400 words"
+
+### ROUGE setup
+- Installed rouge-score library
+- Verified ROUGE-1, ROUGE-2, ROUGE-L compute correctly
+- Identical text gives 1.0 across all variants
+- Unrelated text gives ~0.13 ROUGE-1 (common word noise floor), 
+  0.00 ROUGE-2 (bigrams don't coincidentally match)
+
+### Tomorrow (Day 3)
+- Build the evaluation loop
+- Run one model end-to-end on the 50 examples
+- Verify pipeline produces real ROUGE scores
+- Then scale to all 8 models
