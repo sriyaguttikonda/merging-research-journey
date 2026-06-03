@@ -216,3 +216,47 @@ Why does TIES fail on similar models? Possible follow-ups:
 - Try FLAN as base_model instead of T5-v1.1-base
 - Try higher density values (0.7, 0.9)
 - Test with less similar models (different tasks)
+## Week 8: DARE-TIES density sweep
+
+### Setup
+Tested DARE-TIES on the same FLAN model pair at three density values:
+- 0.9 (keep 90%, drop 10%)
+- 0.5 (keep 50%, drop 50%)
+- 0.1 (keep 10%, drop 90%)
+
+Same input news paragraph as Week 7. Same base model. Only density varies.
+
+### Results
+
+Density 0.9: Clean coherent summary with main event, critics, supporters.
+Slight phrasing redundancy but otherwise good output.
+
+Density 0.5: Complete collapse. Output: "microspor as as as in as as..."
+Repetitive English-like gibberish.
+
+Density 0.1: Complete collapse. Output: "ingrijire bebelus bebelus..."
+Romanian-language baby-care vocabulary. Non-English hallucination.
+
+### Finding
+DARE-TIES on this model pair works only at very low drop rates (around 10%).
+At 50% or higher drop rates, the model collapses entirely.
+
+This contradicts the DARE paper's claim that dropping 90-99% of deltas
+works well. The paper's experiments used:
+- Larger models (Llama-2-13B+)
+- Task-different fine-tunes (math, code, instruction)
+
+My setup is different:
+- Smaller model (T5-base, ~250M params)
+- Highly similar fine-tunes (both FLAN-derived)
+
+### Hypothesis
+DARE's drop-and-rescale strategy may only work when task vectors are roughly
+orthogonal (different task domains). When source models are highly similar
+(overlapping task vectors), random dropping disrupts consistent patterns and
+2x rescaling amplifies noise into model collapse.
+
+### Open questions
+- Would DARE-TIES work on less similar T5 fine-tunes (different tasks)?
+- Does the failure threshold (around density 0.5-0.7) generalize across model pairs?
+- Could task vector cosine similarity predict the maximum tolerable drop rate?
