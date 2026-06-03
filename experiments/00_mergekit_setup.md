@@ -260,3 +260,22 @@ orthogonal (different task domains). When source models are highly similar
 - Would DARE-TIES work on less similar T5 fine-tunes (different tasks)?
 - Does the failure threshold (around density 0.5-0.7) generalize across model pairs?
 - Could task vector cosine similarity predict the maximum tolerable drop rate?
+
+## Week 9 — Day 1: Evaluation infrastructure
+
+### Setup
+- Created Kaggle Dataset (flan-merged-models-week6-8) containing all 8 
+  merged models from Weeks 6-8
+- Started new notebook (mergekit-week9-evaluation) with the Dataset attached
+- Path to merged models: /kaggle/input/datasets/sriyaguttikonda/flan-merged-models-week6-8/
+
+### Day 1 work
+- Installed datasets library
+- Loaded CNN/DailyMail test split (11,490 examples)
+- Each example has 'article' (full text), 'highlights' (reference summary), 'id'
+- Confirmed dataset loads correctly with a sample example
+
+### Tomorrow (Day 2)
+- Decide on evaluation subset size (probably 50-100 examples for tractable runtime)
+- Plan the evaluation loop structure
+- Start setting up ROUGE evaluation
