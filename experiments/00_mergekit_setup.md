@@ -362,8 +362,16 @@ All 8 models will be evaluated with the same "Please write a short summary" prom
 5. DARE-TIES density 0.5 and 0.1 produce non-functional output (validated qualitatively in Week 8)
 6. ROUGE-2 of 0.0 for DARE-TIES 0.5 and 0.1 confirms complete model collapse
 
-### Tomorrow (Day 5): Analysis
-- Examine ranking against expectations from papers
-- Compare quantitative findings against Week 6-8 qualitative observations
-- Identify the most research-worthy finding
-- Decide direction for Week 10+
+## Week 9 — Day 5: Analysis of evaluation results
+
+Initially i thought DARE-TIES should perform better because DARE is supposed to reduce interference before merging. But after looking at the results i dont think interference is even the main problem here.
+
+The first thing i noticed is DARE-TIES completely dies as density goes down. At density 0.9 it is still somewhat ok but at 0.5 and especially 0.1 it is basically unusable. I think this is happening because the models are already very similar. So when DARE randomly drops parameters, it is also dropping a lot of overlapping useful information. Then whatever survives gets rescaled. The higher the drop rate, the larger the rescaling. So maybe instead of preserving signal, it is amplifying the mistakes also. Thats why the drop is not gradual...it just falls off a cliff.
+
+TIES looks different to me. It doesnt collapse like DARE-TIES. But it is still worse than linear. Initially i was confused because TIES is supposed to be smarter than linear merging. But now i think the issue is again the similarity between models. If both models already contain similar information, then trimming might be removing useful overlapping deltas. Then sign election comes and removes even more information. So TIES is trying to resolve conflicts when maybe there are not many important conflicts to resolve in the first place.
+
+Linear merging is actually doing the dumbest thing here and somehow winning. But maybe thats exactly why it works. It is not trimming anything. It is not sparsifying anything. It is just averaging. Since the models are already close to each other, the shared information stays intact instead of getting removed.
+
+So right now my understanding is that both TIES and DARE-TIES assume some level of independence between task vectors. But in my case the models are too similar. Because of that, sparsification becomes harmful instead of helpful. DARE-TIES fails because random dropping + rescaling becomes unstable. TIES fails because trimming and sign election throw away useful overlapping information. Linear doesnt have these problems because it preserves everything.
+
+I think the biggest thing i learned today is that more complicated merging methods are not automatically better. They seem to work only when the assumptions behind them are true. If those assumptions break, then the simplest method can actually perform the best.
