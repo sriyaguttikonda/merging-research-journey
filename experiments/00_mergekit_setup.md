@@ -330,5 +330,40 @@ prompt effects with merge effects.
 
 All 8 models will be evaluated with the same "Please write a short summary" prompt.
 
-### Tomorrow (Day 4)
-Run remaining 7 models through the same pipeline, build comparison table.
+## Week 9 — Day 4: Full quantitative evaluation
+
+### Setup
+- 9 models evaluated on first 50 examples of CNN/DailyMail test split
+- Metric: ROUGE-1, ROUGE-2, ROUGE-L F1 scores
+- Prompt: "Please write a short summary of this article: {article}"
+- Generation: num_beams=4, max_length=128, truncation at 512 tokens input
+- Compute: GPU T4 x2 on Kaggle (~6 minutes total runtime)
+
+### Results table (sorted by ROUGE-1)
+
+| Model | ROUGE-1 | ROUGE-2 | ROUGE-L |
+|---|---|---|---|
+| Linear 0.3/0.7 | 0.2904 | 0.1210 | 0.2247 |
+| Linear 0.5/0.5 | 0.2820 | 0.1179 | 0.2121 |
+| Linear 0.7/0.3 | 0.2804 | 0.1209 | 0.2170 |
+| Summarization fine-tune | 0.2765 | 0.1023 | 0.2083 |
+| DARE-TIES density 0.9 | 0.2738 | 0.1234 | 0.2220 |
+| FLAN-T5-base | 0.2600 | 0.1233 | 0.2105 |
+| TIES density 0.2 | 0.2022 | 0.0701 | 0.1578 |
+| TIES density 0.5 | 0.1999 | 0.0775 | 0.1638 |
+| DARE-TIES density 0.5 | 0.0343 | 0.0000 | 0.0294 |
+| DARE-TIES density 0.1 | 0.0009 | 0.0000 | 0.0009 |
+
+### Key findings (preliminary - analysis tomorrow)
+1. Linear 0.3/0.7 best scoring across all metrics
+2. All three linear merges cluster tightly around 0.28 ROUGE-1
+3. TIES underperforms linear merging at both tested densities (0.20 vs 0.28)
+4. DARE-TIES is highly density-sensitive: works at 0.9, collapses at 0.5 and 0.1
+5. DARE-TIES density 0.5 and 0.1 produce non-functional output (validated qualitatively in Week 8)
+6. ROUGE-2 of 0.0 for DARE-TIES 0.5 and 0.1 confirms complete model collapse
+
+### Tomorrow (Day 5): Analysis
+- Examine ranking against expectations from papers
+- Compare quantitative findings against Week 6-8 qualitative observations
+- Identify the most research-worthy finding
+- Decide direction for Week 10+
