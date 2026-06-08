@@ -449,8 +449,26 @@ I think the biggest thing i learned today is that more complicated merging metho
 - Resolution: re-ran without --cuda (CPU mode)
 - TIES merge started but session expired before completion (was running on CPU, slow)
 
-### Day 4 plan
-- Restart session in CPU mode for TIES completion
-- Once TIES finishes, switch session to GPU T4 x2 for testing
-- Test TIES merged model on same prompts as linear (water tank, fibonacci)
-- Compare honestly: does TIES also break, work, or partially work?
+## Week 10 — Day 4: TIES merge completed (testing deferred)
+
+### Setup
+- Restarted Kaggle session in CPU mode (avoids OOM, saves GPU hours)
+- transformers downgraded to 4.49.0
+- MergeKit reinstalled
+
+### TIES merge on CPU
+- Started ~[approximate time]
+- Took approximately ~75-90 minutes total
+- 2,036 tensor operations processed
+- Output: ./merged_qwen_math_coder_ties/ (~15 GB)
+
+### Preserved via Kaggle Dataset
+- Saved as: qwen-merged-models-week10
+- Reason: testing requires GPU mode; switching accelerators may wipe working directory
+
+### Day 5 plan
+- Start fresh GPU notebook
+- Attach qwen-merged-models-week10 dataset
+- Load TIES merged model
+- Test on same math + code prompts as Day 3 linear
+- Compare honestly: same failure, different failure, or success?
