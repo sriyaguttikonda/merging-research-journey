@@ -375,3 +375,28 @@ Linear merging is actually doing the dumbest thing here and somehow winning. But
 So right now my understanding is that both TIES and DARE-TIES assume some level of independence between task vectors. But in my case the models are too similar. Because of that, sparsification becomes harmful instead of helpful. DARE-TIES fails because random dropping + rescaling becomes unstable. TIES fails because trimming and sign election throw away useful overlapping information. Linear doesnt have these problems because it preserves everything.
 
 I think the biggest thing i learned today is that more complicated merging methods are not automatically better. They seem to work only when the assumptions behind them are true. If those assumptions break, then the simplest method can actually perform the best.
+
+## Week 10 — Day 1: Qwen2.5-7B sanity check (multi-GPU)
+
+### Setup completed
+- New Kaggle notebook: mergekit-week10-qwen-setup
+- Dual T4 GPUs configured
+- HF token added as Kaggle secret (HF_TOKEN)
+- transformers 5.10.2, accelerate 1.13.0, torch 2.10.0+cu128
+
+### Model loaded
+- Qwen/Qwen2.5-7B-Instruct via device_map="auto"
+- Sharded cleanly: layers 0-11 on GPU 0, layers 12-27 + norm + lm_head on GPU 1
+- No CPU/disk offload — fits comfortably in 32GB combined VRAM
+
+### Inference verified
+- Tested with: "What is 247 × 38?"
+- Model produced correct answer (9386) with valid reasoning steps
+- Generation took ~15-20 seconds for first call (CUDA init), faster for subsequent
+- Used apply_chat_template (required for Qwen2.5 instruct models)
+
+### Day 2 plan
+- Load Qwen2.5-Math-7B-Instruct and Qwen2.5-Coder-7B-Instruct  
+- Verify all three models can be loaded individually
+- Write first merge config (linear, math + coder, 50/50)
+- Run sanity-check merge
