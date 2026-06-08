@@ -417,8 +417,40 @@ I think the biggest thing i learned today is that more complicated merging metho
 - Merge ran on GPU (--cuda flag)
 - 1697 tensor operations, ~5 minutes total
 
-### Day 3 plan
-- Load merged model and verify it generates output
-- Test on both math and code prompts
-- Observe whether merge inherits behavior from both parents
-- Possibly run additional merges (TIES, DARE-TIES) at 7B scale
+## Week 10 — Day 3: Testing the linear merge
+
+### Setup
+- Loaded merged model from ./merged_qwen_math_coder_linear/
+- device_map="auto" sharded cleanly across both T4 GPUs
+- Same device distribution as Day 1: layers 0-11 on GPU 0, layers 12-27 + norm + lm_head on GPU 1
+- Loading from disk: 4 shards loaded in ~62 seconds
+- Warning observed: "Sliding Window Attention is enabled but not implemented for sdpa" (informational, does not affect short generations)
+
+### Test 1: Math problem
+- Prompt: water tank with pipes A (fills in 6h), B (fills in 9h), C (empties in 12h). How long to fill?
+- Correct answer: 36/7 ≈ 5.14 hours
+- Merged model output: started correctly (identified rates 1/6, 1/9, -1/12), then collapsed into infinite repetition of "Pipe A's rate + Pipe B's rate + Pipe C's rate:"
+- Never arrived at the answer; ran out of tokens stuck in loop
+
+### Test 2: Code problem
+- Prompt: write fibonacci(n) with memoization using dictionary, docstring, edge cases
+- Merged model output: produced "import memoization" then collapsed into infinite repetition of "def memoization dictionary:"
+- Never produced a working function; failure mode identical in structure to Test 1
+
+### Decision after Test 2
+- Discussed running additional methods on same model pair
+- Acknowledged the impulse to keep trying methods was partly anxiety-driven (wanting to see something work)
+- Decided to proceed with TIES on same pair as a comparison data point
+- Storage management: deleted ./merged_qwen_math_coder_linear/ to make room for TIES output (no Kaggle Dataset save - linear merge artifact lost, but config preserved at config_qwen_math_coder_linear.yaml)
+
+### TIES attempt
+- First attempt with --cuda flag: CUDA OOM error during torch.argsort in sparsify step
+- GPU 0 ran out of memory trying to allocate 5.08 GB for sorting operation
+- Resolution: re-ran without --cuda (CPU mode)
+- TIES merge started but session expired before completion (was running on CPU, slow)
+
+### Day 4 plan
+- Restart session in CPU mode for TIES completion
+- Once TIES finishes, switch session to GPU T4 x2 for testing
+- Test TIES merged model on same prompts as linear (water tank, fibonacci)
+- Compare honestly: does TIES also break, work, or partially work?
