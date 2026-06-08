@@ -395,8 +395,30 @@ I think the biggest thing i learned today is that more complicated merging metho
 - Generation took ~15-20 seconds for first call (CUDA init), faster for subsequent
 - Used apply_chat_template (required for Qwen2.5 instruct models)
 
-### Day 2 plan
-- Load Qwen2.5-Math-7B-Instruct and Qwen2.5-Coder-7B-Instruct  
-- Verify all three models can be loaded individually
-- Write first merge config (linear, math + coder, 50/50)
-- Run sanity-check merge
+## Week 10 — Day 2: First Qwen merge
+
+### Verified all three models work individually
+- Qwen2.5-7B-Instruct: correct arithmetic (247 × 38 = 9386)
+- Qwen2.5-Math-7B-Instruct: word problem with multi-step reasoning (217.5 mi correct)
+- Qwen2.5-Coder-7B-Instruct: production-quality Python with edge cases and tests
+
+### Compatibility issue encountered
+- Initial merge attempt failed with pydantic error: 
+  `ConfiguredModuleArchitecture is not fully defined`
+- Root cause: incompatibility between MergeKit and transformers 5.10.2 (Kaggle's default)
+- Resolution: downgraded to transformers==4.49.0
+- Lesson: bleeding-edge transformers versions may not work with MergeKit yet
+- For reproducibility: pin transformers to 4.49.0 in all Qwen merge notebooks
+
+### First Qwen merge completed
+- Method: linear, 50/50 weights
+- Models: Qwen2.5-Math-7B-Instruct + Qwen2.5-Coder-7B-Instruct
+- Output: ./merged_qwen_math_coder_linear/ (~15 GB)
+- Merge ran on GPU (--cuda flag)
+- 1697 tensor operations, ~5 minutes total
+
+### Day 3 plan
+- Load merged model and verify it generates output
+- Test on both math and code prompts
+- Observe whether merge inherits behavior from both parents
+- Possibly run additional merges (TIES, DARE-TIES) at 7B scale
