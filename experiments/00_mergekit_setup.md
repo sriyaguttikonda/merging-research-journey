@@ -491,9 +491,46 @@ I think the biggest thing i learned today is that more complicated merging metho
 - ~2 GPU-hours (CPU merge in GPU session — convenience cost)
 - Lesson for next time: switch to CPU accelerator for CPU-only work
 
-### Day 6 plan
-- Fresh GPU notebook
-- Attach qwen-merged-models-week10 dataset as input
-- Load merged TIES model
-- Test on same prompts as Day 3 linear (water tank, fibonacci)
-- Compare TIES vs linear behavior honestly
+## Week 10 — Day 6: TIES merge tested
+
+### Setup
+- New Kaggle notebook, GPU T4 x2
+- Attached qwen-merged-models-week10 dataset from Day 5
+- transformers==4.49.0, HF login successful
+- Loaded merged TIES model from /kaggle/input/datasets/sriyaguttikonda/qwen-merged-models-week10
+- Device map: layers 0-11 on GPU 0, layers 12-27 + norm + lm_head on GPU 1
+- Loading time: 90 seconds from disk
+
+### Test 1: Math prompt (water tank problem)
+- Same prompt as Day 3 linear test
+- Result: complete gibberish — strings of zeros and random tokens, no coherent text at all
+- Failure mode: noise from the first generated token
+- Did NOT produce the loop pattern seen with linear merge
+
+### Test 2: Code prompt (fibonacci memoization)
+- Same prompt as Day 3 linear test
+- Result: complete gibberish — strings of zeros and repeated " -es" fragments
+- Failure mode: same noise-from-start pattern as math test
+- Confirms the failure is global, not prompt-specific
+
+### Comparison to Day 3 linear merge
+- Linear: coherent start → repetition loop
+- TIES (density 0.5): noise from start
+- Both methods FAIL on the Qwen Math+Coder pair, but in qualitatively different ways
+- TIES failure is worse — model loses ability to produce coherent text entirely
+
+### Interpretation (tentative)
+- Density 0.5 may be too aggressive for highly different specialists
+- TIES discards half the deltas; if both parent models rely on those deltas for coherence, the merged model has too little signal
+- Echoes Phase 2 finding (DARE-TIES at low density on T5 collapsed similarly)
+- Need more data points before drawing firm conclusions
+
+### Open questions
+- Would TIES at higher density (0.7, 0.9) preserve coherence?
+- Is the failure specific to Math+Coder, or would Math+Instruct show same pattern?
+- What does density variation look like across the spectrum?
+
+### Day 7 / Week 11 planning
+- Document Week 10 findings comprehensively
+- Decide systematic next steps (density sweep, weight variations, other model pairs)
+- Re-engage with research question: when do merge methods succeed or fail?
