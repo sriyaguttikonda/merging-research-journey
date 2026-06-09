@@ -466,9 +466,34 @@ I think the biggest thing i learned today is that more complicated merging metho
 - Saved as: qwen-merged-models-week10
 - Reason: testing requires GPU mode; switching accelerators may wipe working directory
 
-### Day 5 plan
-- Start fresh GPU notebook
-- Attach qwen-merged-models-week10 dataset
-- Load TIES merged model
-- Test on same math + code prompts as Day 3 linear
-- Compare honestly: same failure, different failure, or success?
+## Week 10 — Day 5: TIES merge completed and properly preserved
+
+### Yesterday's loss
+- Day 4 TIES merge was lost due to "Save Version" not preserving 15 GB output
+- Lesson: Save Version is not a substitute for proper Dataset creation
+
+### Today's re-merge
+- New Kaggle notebook, GPU T4 x2 accelerator (knowingly burning GPU hours for convenience)
+- transformers downgraded to 4.49.0
+- MergeKit installed fresh
+- TIES merge config recreated
+- Merge ran on CPU (no --cuda flag) to avoid yesterday's OOM
+- Total runtime: ~3.5 min downloads + 38:41 actual graph execution
+- 2036 tensor operations
+- Output: ./merged_qwen_math_coder_ties/ (15.24 GB)
+
+### Proper save this time
+- Used Kaggle CLI: `kaggle datasets create -p ./merged_qwen_math_coder_ties --dir-mode zip`
+- Created dataset: sriyaguttikonda/qwen-merged-models-week10
+- Dataset persists across notebook sessions
+
+### Compute used
+- ~2 GPU-hours (CPU merge in GPU session — convenience cost)
+- Lesson for next time: switch to CPU accelerator for CPU-only work
+
+### Day 6 plan
+- Fresh GPU notebook
+- Attach qwen-merged-models-week10 dataset as input
+- Load merged TIES model
+- Test on same prompts as Day 3 linear (water tank, fibonacci)
+- Compare TIES vs linear behavior honestly
