@@ -530,7 +530,26 @@ I think the biggest thing i learned today is that more complicated merging metho
 - Is the failure specific to Math+Coder, or would Math+Instruct show same pattern?
 - What does density variation look like across the spectrum?
 
-### Day 7 / Week 11 planning
-- Document Week 10 findings comprehensively
-- Decide systematic next steps (density sweep, weight variations, other model pairs)
-- Re-engage with research question: when do merge methods succeed or fail?
+## Week 11 — Monday: Task vector similarity computation started, paused for memory planning
+
+### What we attempted
+- Goal: compute cosine similarity between Qwen2.5-Math-7B and Qwen2.5-Coder-7B task vectors
+- Purpose: empirically validate that the Math+Coder pair has low pre-merge similarity, which the recent literature suggests is why TIES/Linear failed
+- Approach: load base model, extract weights to CPU, then load each specialist, compute deltas
+
+### What happened
+- Loaded Qwen2.5-7B base, extracted weights to CPU dict
+- Ran into RAM constraint: only 15 GB available after holding base weights (out of 30 GB total)
+- Realized holding 3 full model weight dicts simultaneously is not feasible (would need ~42 GB)
+- Kernel was reset accidentally, lost in-memory state
+- Paused to plan better memory management
+
+### Plan for next session
+- Use safetensors-direct loading (lazy reads from cache files, no full model on GPU)
+- Process one tensor at a time, save deltas to disk progressively
+- Compute similarity from saved disk files at the end
+- Peak memory: ~1-2 GB instead of 30+ GB
+
+### Lesson
+- Don't underestimate RAM constraints for multi-model operations
+- Memory math should be done upfront, not discovered mid-experiment
