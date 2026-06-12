@@ -360,6 +360,131 @@ At this point my strongest conclusion is that delta magnitude appears to be the 
 - Magnitude analysis: Kaggle dataset `sriyaguttikonda/week11-day3-mistral-magnitudes`
 - Similarity analysis: Kaggle dataset `sriyaguttikonda/week11-day3-mistral-similarities`
 
-### Next step
+# Week 11 Day 4 - Magnitude vs Similarity Analysis
 
-Tomorrow I want to do a magnitude vs similarity scatter plot across all data points (both Qwen and Mistral) to see if there's any correlation visible. If magnitude and similarity are truly independent dimensions as today's results suggest, the scatter should show no obvious pattern. If there's a hidden relationship, it would show up there.
+After looking at magnitude separately and similarity separately over the last few days, I wanted to see whether they are actually related to each other.
+
+The question today was pretty simple.
+
+If a tensor has a larger delta, does that also mean it is more aligned with the corresponding tensor in another fine-tuned model?
+
+Or are magnitude and similarity completely independent things?
+
+To check this, I rebuilt the Qwen results from scratch, attached the Mistral datasets from yesterday and created a side-by-side scatter plot.
+
+For each tensor:
+
+* x-axis = average per-parameter |Δ|
+* y-axis = cosine similarity between the two task vectors
+
+I only kept attention and MLP tensors because those are the main components and it removes a lot of noise from layernorms, biases and embedding-related stuff.
+
+The first thing that jumped out at me was how different the scales are.
+
+For Qwen, most tensors sit around 0.01-0.025 magnitude and 0.2-0.4 similarity.
+
+For Mistral, most tensors sit around 0.0002-0.0004 magnitude and 0.01-0.03 similarity.
+
+So before even looking at patterns, the two plots are already operating in completely different regimes.
+
+Honestly that was the first thing my eyes went to.
+
+The Qwen plot and Mistral plot don't even look like they came from the same type of training process.
+
+The Qwen plot shows a pretty clear positive trend.
+
+Its not a perfect line or anything, but as magnitude increases, similarity also tends to increase.
+
+The MLP tensors form a fairly tight cluster in the upper-middle part of the plot, while the attention tensors are spread out over a much larger range.
+
+What I found interesting is that the MLP cluster sits above most of the attention points. So the MLP tensors are not only changing a lot, they are also changing in more similar directions between Math and Coder.
+
+That feels important.
+
+The Mistral plot looks completely different.
+
+I went into this expecting clean SFT models to probably be more aligned than Qwen.
+
+That is not what happened.
+
+The similarities are much lower overall and I don't really see the same positive trend.
+
+If anything, the MLP points show a weak downward trend where larger magnitudes correspond to slightly lower similarity.
+
+The attention tensors are also split into two separate groups instead of forming one cloud.
+
+One cluster sits near the MLP points while another appears at much larger magnitudes but still very low similarity.
+
+I honestly don't know why yet.
+
+That is probably the most interesting unresolved thing in today's plot.
+
+The main takeaway for me is that magnitude and similarity are not telling the same story.
+
+A few days ago I was almost expecting something like:
+
+small deltas -> high similarity
+
+large deltas -> low similarity
+
+But that is clearly not what the data says.
+
+Qwen has very large deltas and relatively high similarity.
+
+Mistral has tiny deltas and very low similarity.
+
+So magnitude and direction seem to be measuring different properties of the training process.
+
+The Qwen result is actually making more sense to me now.
+
+If Qwen Math and Qwen Coder both went through some common continued-pretraining style stage before specializing, then it would explain why the largest deltas are often the most aligned. The biggest changes may be coming from something both models experienced together, while the later task-specific tuning introduces the differences.
+
+Not saying I've proven that.
+
+But the positive correlation is at least consistent with that story.
+
+For Mistral, the picture feels different.
+
+The deltas are tiny and the directions seem much more independent.
+
+Almost like each instruction-tuning dataset nudged the model in its own direction regardless of how much a particular tensor changed.
+
+So the headline from today's experiment is not just that Qwen and Mistral have different magnitudes.
+
+Its that the relationship between magnitude and direction itself looks different.
+
+Qwen gives me one big cloud with an upward trend.
+
+Mistral gives me separated structures with almost no positive relationship at all.
+
+That feels like a stronger result than looking at magnitude or similarity alone.
+
+Because now it is not just "how much did the models change?" or "how aligned are they?"
+
+It is "how does alignment change as the updates get larger?"
+
+And for Qwen and Mistral, the answers seem completely different.
+
+## Caveats
+
+A few things I need to be careful about.
+
+First, this is only one Mistral pair (Instruct vs Zephyr). Another Mistral pair could look different.
+
+Second, I only have one specialist pair on the Qwen side.
+
+Third, I used average per-parameter |Δ| as the magnitude metric. A different metric such as relative magnitude might produce a different picture.
+
+Also, I removed biases, layernorms and embeddings from the main analysis. That makes the comparison cleaner, but it also means I am not looking at the whole model.
+
+## What I want to check next
+
+The attention split in Mistral is bothering me.
+
+I want to know whether those two clusters correspond to specific layers or specific attention projections.
+
+I also want to see if the same pattern appears in Instruct vs OpenHermes and Zephyr vs OpenHermes.
+
+Right now the strongest thing I feel comfortable saying is that magnitude and similarity are not coupled in a universal way.
+
+The relationship itself seems to depend on the training procedure.
