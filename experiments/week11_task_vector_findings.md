@@ -477,14 +477,166 @@ Third, I used average per-parameter |Δ| as the magnitude metric. A different me
 
 Also, I removed biases, layernorms and embeddings from the main analysis. That makes the comparison cleaner, but it also means I am not looking at the whole model.
 
-## What I want to check next
+## Day 5 — Mistral TIES Merge (Path B)
 
-The attention split in Mistral is bothering me.
+After spending the last 4 days measuring similarities, magnitudes and trying to understand why Qwen TIES completely failed in Week 10, I finally wanted to test the actual thing.
 
-I want to know whether those two clusters correspond to specific layers or specific attention projections.
+The question was pretty simple.
 
-I also want to see if the same pattern appears in Instruct vs OpenHermes and Zephyr vs OpenHermes.
+If I take the exact same TIES configuration that produced complete nonsense on Qwen Math + Coder and apply it to a clean SFT pair from a different model family, what happens?
 
-Right now the strongest thing I feel comfortable saying is that magnitude and similarity are not coupled in a universal way.
+If it also fails, then maybe TIES itself is the problem.
 
-The relationship itself seems to depend on the training procedure.
+If it works, then maybe the problem is the input models rather than the merge method.
+
+### Setup
+
+I used the same TIES configuration from Week 10 Day 4. Nothing fancy changed. Same density. Same weights. Same normalize and int8_mask settings. The only thing that changed was the model pair.
+
+Models used:
+
+| Role | Model | Per-param Δ from Day 3 |
+|---|---|---|
+| Base | mistralai/Mistral-7B-v0.1 | — |
+| Fine-tune A | mistralai/Mistral-7B-Instruct-v0.2 | 0.000421 |
+| Fine-tune B | teknium/OpenHermes-2.5-Mistral-7B | 0.000061 |
+
+Merge configuration:
+
+- merge_method: ties
+- density: 0.5 (each model)
+- weight: 0.5 (each model)
+- base_model: mistralai/Mistral-7B-v0.1
+- normalize: true
+- int8_mask: true
+- dtype: bfloat16
+
+From Day 3 I already knew these models have very small per-parameter deltas compared to Qwen (which were around 0.015-0.016).
+
+So before running anything, this was basically a test of whether the delta magnitude story I've been building all week actually shows up in practice.
+
+### Merge process
+
+The merge itself was surprisingly smooth. MergeKit finished in around 6 minutes 43 seconds and produced the merged model without any CUDA OOM issues. That immediately caught my attention because the Qwen merge hit memory problems even though I was using basically the same setup.
+
+Output: 13.49 GB across 3 safetensors shards.
+
+This time I also saved the merged model as a Kaggle Dataset immediately because Week 10 already taught me that lesson the hard way.
+
+Saved as: sriyaguttikonda/week11-day5-mistral-ties-merged
+
+### Tokenizer issue
+
+One thing I ran into was that the merged tokenizer had no chat template.
+
+At first that looked strange, but after thinking about it, it actually makes sense. The base Mistral model is not instruction tuned. Mistral-Instruct uses INST format. OpenHermes uses ChatML. MergeKit doesn't know which one should win, so it basically leaves the decision to the user.
+
+For testing I manually formatted prompts using the Mistral-Instruct style. This isn't really a failure of the merge itself, but it is a practical issue someone would have to solve if they actually wanted to use the merged model.
+
+Another thing worth noting is the vocabulary mismatch. OpenHermes adds two extra tokens compared to the base model. MergeKit handled this by taking the part of the embedding matrix that matches the base vocabulary. This is different from what I did during Day 3 where I simply excluded those tensors from the analysis. Probably not a huge deal, but worth keeping in mind because the merge and the analysis are not handling those tensors the same way.
+
+### Math test
+
+For the math test I used the exact same water tank problem that caused complete gibberish in Week 10.
+
+Prompt: A water tank can be filled by pipe A in 6 hours and by pipe B in 9 hours. Pipe C can empty the full tank in 12 hours. If all three pipes are opened together when the tank is empty, how long will it take to fill the tank?
+
+Correct answer: 36/7 ≈ 5.14 hours
+
+Output from the Mistral merged model:
+
+"To find the time it takes to fill the tank with all three pipes open, we need to find the combined rate of the three pipes. The rate of pipe A is 1/6 of the tank per hour. The rate of pipe B is 1/9 of the tank per hour. The rate of pipe C is -1/12 of the tank per hour (since it empties the tank). Combined rate = (1/6 + 1/9) - 1/12. To simplify this expression, we can find a common denominator for the fractions: Combined rate = (3/18 + 2/18) - 1/12. Now we can combine the fractions: Combined rate = (5/18) - 1/12. To further simplify this expression, we can find a common denominator for the fractions 5/18 and 1/12: Common denominator = 18. Now we can rewrite the fractions with the common denominator: Combined rate = (5/18) - (9/18). Combined rate = (5-9)/18. Combined rate = (-4)/18. Combined rate = -2/" [cut off at max tokens]
+
+The merged model understood the problem. It identified all three rates correctly. It set up the equation correctly. It even simplified the first step correctly. Then halfway through the calculation it completely messed up the fraction arithmetic (18 is not a common denominator for 5/18 and 1/12) and everything after that became wrong.
+
+The important thing is that the reasoning itself remained coherent. The model knew what it was trying to do. It just made a real math mistake.
+
+That is very different from the Qwen merge where the output was broken from the first few tokens. So I would classify this as "fluent but incorrect" rather than "broken."
+
+### Code test
+
+The code result felt very similar. The model produced something that looked like a real memoized fibonacci implementation.
+
+Output from the Mistral merged model included a clean def fibonacci(n) with docstring, parameter descriptions, base cases (n<=0, n==1, n==2), and a dictionary fib_dict initialized with {0: 0, 1: 1}, followed by a single line:
+
+fib_dict[n] = fib_dict[n - 1] + fib_dict[n - 2]
+
+Followed by explanatory prose about how memoization works.
+
+But the actual logic is wrong. The code skipped recursion or iteration entirely. For any n >= 3, the lookup fib_dict[n-1] would KeyError because the dictionary only has keys 0 and 1.
+
+So the model wrote code that looked like memoized fibonacci, used all the right vocabulary (memoization, dictionary, base cases, docstring), but had broken logic underneath. It would only return correct results for n <= 2.
+
+Same category as the math example. Fluent. Not correct. But definitely not gibberish.
+
+### Direct comparison with Qwen
+
+| Test | Qwen TIES (Week 10 Day 6) | Mistral TIES (Day 5) |
+|---|---|---|
+| Math prompt | Complete gibberish from token 1 | Coherent reasoning, real arithmetic error mid-derivation |
+| Code prompt | Strings of "0" and " -es" loops | Structurally valid Python, broken logic |
+| Outcome category | Broken | Fluent but incorrect |
+| Merge time | OOM crash on first try, ~40 min CPU fallback | 6 min 43 sec, no OOM |
+
+Same merge method. Same density. Same weights. Same overall configuration. Different input models.
+
+That is the cleanest comparison I have produced all week.
+
+### What I think this means
+
+I don't think the result is "TIES works."
+
+The merged Mistral model is clearly worse than it should be. It makes mistakes in both domains.
+
+But I also don't think the result is "TIES is broken."
+
+Because if the method itself was fundamentally broken, I would expect similar failure modes across both experiments. Instead I got two completely different outcomes. The Qwen merge completely collapsed. The Mistral merge stayed coherent.
+
+That difference lines up surprisingly well with everything I measured earlier this week.
+
+The Mistral models have tiny SFT-style deltas. The Qwen specialist models have deltas roughly 30-100x larger. The Mistral models behave much closer to the assumptions used in papers like TIES and DARE. The Qwen models do not.
+
+So right now my working hypothesis is getting stronger. Not proven. But stronger.
+
+The merge method seems much more stable when the input models look like normal supervised fine-tunes. The catastrophic failure appears when the input models look more like continued-pretraining style updates.
+
+### Things I need to be careful about
+
+There are still a lot of caveats here.
+
+The biggest one is that I never tested the original Mistral-Instruct and OpenHermes models on these exact prompts. So I know the merged model makes mistakes. But I don't yet know how much of that came from the merge versus the original models themselves. That is a real gap.
+
+The second issue is sample size. Two prompts is enough to notice a pattern. It is not enough to make a strong claim. A proper benchmark would be much more convincing.
+
+I also only tested one Mistral pair and one Qwen pair. More model pairs would make the story much stronger.
+
+And finally, the tokenizer and vocabulary handling differences are still sitting in the background. I don't think they explain the entire result, but they are part of the experiment and shouldn't be ignored.
+
+### Saved artifacts
+
+- Merged model: Kaggle Dataset sriyaguttikonda/week11-day5-mistral-ties-merged
+- Merge config: /kaggle/working/ties_merge_config.yml
+- Test outputs: included above
+
+### Current takeaway
+
+At the start of the week I had a pretty simple observation: "Qwen TIES produced gibberish."
+
+Now I think the story is more interesting than that.
+
+The measurements from Days 1-4 suggested that Qwen Math and Qwen Coder look fundamentally different from normal supervised fine-tunes.
+
+Day 5 is the first time I tested whether that difference actually matters in a real merge.
+
+And the answer seems to be yes.
+
+When TIES is given clean SFT-style models, it produces a degraded but coherent model. When TIES is given Qwen Math and Qwen Coder, it completely falls apart.
+
+That doesn't prove the delta magnitude hypothesis. But it definitely makes it harder to dismiss.
+
+### What I want to do next
+
+- Test Mistral-Instruct alone and OpenHermes alone on these exact same prompts (baseline, to attribute errors properly)
+- Try TIES at higher density (0.7, 0.9) on the Mistral pair — does it produce correct outputs, not just coherent ones?
+- Run a real benchmark (GSM8K or HumanEval) instead of N=2 anecdotal prompts
+- Test a second clean SFT pair (Mistral-Instruct + Zephyr, or Zephyr + OpenHermes)
