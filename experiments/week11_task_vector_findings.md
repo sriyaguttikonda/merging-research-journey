@@ -192,3 +192,174 @@ A few honest limitations:
 The next step is probably to test another model family. If a more traditional SFT pair shows small deltas and merges successfully, that would strengthen this hypothesis. If it also fails, then I need a different explanation.
 
 Right now the strongest conclusion I feel comfortable making is that Qwen2.5-Math and Qwen2.5-Coder look fundamentally different from the fine-tuning examples used in papers like DARE, and that difference is large enough that it may explain some of the strange behavior I observed during merging experiments.
+## Day 3 — Mistral Family Analysis
+
+After yesterday's results, I wanted to check whether the large delta magnitudes I observed in Qwen Math and Qwen Coder were actually unusual or if I was just looking at a weird metric. So today I switched to the Mistral family and repeated the same analysis on three popular fine-tunes: Mistral Instruct, Zephyr and OpenHermes.
+
+### Setup
+
+The first thing I checked was whether the models were compatible for direct comparison. All four models had exactly the same tensor structure with 291 tensors each. The only issue was that all three fine-tunes added two extra vocabulary tokens compared to the base model. This caused shape mismatches for the embedding and lm_head tensors, so I excluded those two tensors from the analysis. Since this affects less than 1% of the parameters and MergeKit already uses special handling for embeddings, I think this is a reasonable approximation, but it is still something worth mentioning as a limitation.
+
+Models used:
+
+| Label | Hugging Face ID |
+|---|---|
+| base | mistralai/Mistral-7B-v0.1 |
+| instruct | mistralai/Mistral-7B-Instruct-v0.2 |
+| zephyr | HuggingFaceH4/zephyr-7b-beta |
+| openhermes | teknium/OpenHermes-2.5-Mistral-7B |
+
+### Magnitude analysis
+
+The main result is honestly pretty striking.
+
+Mistral Instruct came out at 0.000421. Zephyr was even smaller at 0.000098. OpenHermes was smaller still at 0.000061.
+
+When I put these numbers next to yesterday's Qwen results, the difference becomes hard to ignore. Qwen Math and Qwen Coder were around 0.015-0.016. These Mistral fine-tunes are sitting around 0.00006-0.00042.
+
+That is not a small difference. That is roughly two orders of magnitude.
+
+Full comparison across all data points collected this week + literature reference:
+
+| Model | Mean per-param |Δ| | Type | Source |
+|---|---|---|---|
+| OpenHermes-2.5-Mistral-7B | 0.000061 | Clean SFT | Day 3 |
+| Zephyr-7B-beta | 0.000098 | Clean SFT | Day 3 |
+| Qwen-2.5-7B-Instruct | 0.000228 | Clean SFT | Day 2 |
+| WizardMath-7B (LLaMA-2) | 0.000400 | Clean SFT | DARE-the-Extreme Table 8 |
+| Mistral-7B-Instruct-v0.2 | 0.000421 | Clean SFT | Day 3 |
+| MetaMath-7B (LLaMA-2) | 0.000720 | Clean SFT | DARE-the-Extreme Table 8 |
+| Abel-7B (LLaMA-2) | 0.000730 | Clean SFT | DARE-the-Extreme Table 8 |
+| Qwen-2.5-Coder-7B | 0.014813 | Released as fine-tune | Day 2 |
+| Qwen-2.5-Math-7B | 0.016086 | Released as fine-tune | Day 2 |
+| MetaMath-LLeMA-7B | 0.017000 | Continued pretraining | DARE-the-Extreme Table 8 |
+
+What's interesting is that the Mistral numbers look exactly like what I would expect from the DARE paper. WizardMath, MetaMath and Abel all fall into the same general range. In other words, the Mistral family behaves like the literature says normal supervised fine-tuning should behave.
+
+Qwen Math and Qwen Coder do not.
+
+This makes yesterday's result much more difficult to dismiss as a Qwen-specific quirk or a bug in my implementation. If the metric itself was broken, I would expect all models to show strange values. Instead, the Mistral models line up very nicely with both the DARE results and the Qwen Instruct control model from Day 2.
+
+At this point my interpretation is becoming a bit stronger. Yesterday I suspected that Qwen Math and Qwen Coder might have undergone something closer to continued pretraining than standard supervised fine-tuning. Today's results don't prove that, but they do remove one alternative explanation. The alternative explanation was that all fine-tuned models naturally produce large deltas and I was overreacting to the Qwen numbers. The Mistral results make that explanation much harder to defend.
+
+Another thing that stood out is how small Zephyr and OpenHermes are. These are highly capable instruction-following models, yet their average parameter changes are tiny. That fits surprisingly well with the DARE interpretation that supervised fine-tuning is mostly unlocking or steering capabilities that already exist in the base model rather than creating entirely new capabilities from scratch.
+
+### Pairwise similarity between Mistral fine-tunes
+
+After looking at delta magnitudes, I wanted to see whether the Mistral fine-tunes were also pointing in similar directions. Since all three models are instruction-tuned variants of the same base model, my initial expectation was that they would probably be more aligned than the Qwen Math/Coder pair.
+
+The first results were confusing.
+
+One of the model pairs showed cosine values ranging almost from -1 to 1. After digging into the tensors, I realized this was mostly coming from layernorm parameters. The actual deltas for those tensors are extremely small, so even tiny numerical differences can produce unstable cosine values. Since the denominator becomes very small, the cosine similarity becomes unreliable.
+
+Raw similarity statistics (including layernorms):
+
+| Pair | n | mean | median | min | max | stdev |
+|---|---|---|---|---|---|---|
+| instruct vs zephyr | 240 | 0.0179 | 0.0177 | -0.0005 | 0.1031 | 0.0113 |
+| instruct vs openhermes | 241 | 0.0489 | 0.0455 | -0.0267 | 0.0847 | 0.0236 |
+| zephyr vs openhermes | 239 | 0.0409 | 0.0367 | -1.0000 | 1.0000 | 0.1773 |
+
+Investigation of the suspicious zephyr_vs_openhermes range showed that 8 tensors with |cosine_similarity| > 0.5 were all layernorms. Distribution of |cos_sim| values for that pair:
+
+| Range | Count | Percentage |
+|---|---|---|
+| < 0.05 | 208 | 87.0% |
+| 0.05 - 0.10 | 20 | 8.4% |
+| 0.10 - 0.50 | 3 | 1.3% |
+| 0.50 - 0.95 | 1 | 0.4% |
+| 0.95 - 1.00 (layernorm artifact) | 7 | 2.9% |
+
+After excluding layernorm tensors and recomputing the statistics, the picture became much cleaner:
+
+| Pair | n | mean | median | min | max | stdev |
+|---|---|---|---|---|---|---|
+| instruct vs zephyr | 224 | 0.0184 | 0.0179 | 0.0037 | 0.1031 | 0.0094 |
+| instruct vs openhermes | 224 | 0.0528 | 0.0492 | 0.0165 | 0.0847 | 0.0195 |
+| zephyr vs openhermes | 224 | 0.0329 | 0.0367 | -0.0020 | 0.0614 | 0.0149 |
+
+The mean similarities for the three model pairs were all very low, ranging from roughly 0.018 to 0.053.
+
+Honestly this was the opposite of what I expected.
+
+Yesterday the Qwen Math/Coder pair had an average similarity around 0.40. I came into today's experiment expecting clean supervised fine-tunes to be more aligned than specialist models. Instead they were much less aligned.
+
+My current interpretation is that clean supervised fine-tuning does not necessarily push models in the same direction. Even though all three models are instruction-tuned and start from the same base model, they are still learning from different datasets and optimization trajectories. The end result seems to be that each model develops its own task vector direction.
+
+So at least from these experiments, "same type of fine-tune" does not automatically mean "high task-vector similarity."
+
+### Per-layer similarity pattern
+
+I also looked at similarity layer-by-layer after excluding layernorm tensors.
+
+The pattern was surprisingly consistent across all three model pairs in shape, although the amplitude varied (instruct vs openhermes peaks much higher than instruct vs zephyr).
+
+Sample per-layer values:
+
+| Layer | instruct_vs_zephyr | instruct_vs_openhermes | zephyr_vs_openhermes |
+|---|---|---|---|
+| 0 | 0.0325 | 0.0272 | 0.0136 |
+| 5 | 0.0129 | 0.0354 | 0.0152 |
+| 10 | 0.0168 | 0.0464 | 0.0275 |
+| 15 | 0.0220 | 0.0585 | 0.0400 |
+| 18 | 0.0243 | 0.0665 | 0.0470 |
+| 19 | 0.0224 | 0.0674 | 0.0438 |
+| 20 | 0.0206 | 0.0653 | 0.0417 |
+| 25 | 0.0164 | 0.0606 | 0.0398 |
+| 30 | 0.0209 | 0.0675 | 0.0500 |
+| 31 | 0.0234 | 0.0711 | 0.0550 |
+
+Similarity starts very low in the early layers, usually around 0.01-0.03. It then gradually increases through the middle layers, reaches its highest values around layers 18-19, drops slightly around layers 24-26, and then increases again near the final layers.
+
+Overall the shape looks more like a hump or inverted-U.
+
+What makes this interesting is that it looks completely different from the Qwen Math/Coder results from Day 1.
+
+For Qwen, similarity was highest near the beginning and end of the network and lowest in the middle layers. That produced a U-shaped curve.
+
+For Mistral, similarity is lowest near the edges and highest in the middle layers, producing almost the opposite pattern.
+
+I don't want to over-interpret this yet, but it suggests that different training procedures may leave different signatures across network depth. The Qwen specialist models already looked unusual because of their large delta magnitudes. Now they also look unusual in terms of where those changes occur across the network.
+
+### Updated interpretation
+
+At the start of this week I was expecting similarity and magnitude to tell the same story.
+
+Something like:
+
+small deltas -> high similarity
+
+large deltas -> low similarity
+
+That is not what happened.
+
+The magnitude result remains very strong. Mistral fine-tunes behave like the supervised fine-tuning examples reported in the literature, while Qwen Math and Qwen Coder behave much more like continued-pretraining examples.
+
+The directional result is much less straightforward.
+
+In fact, the Qwen Math/Coder pair is substantially more aligned than the clean Mistral fine-tune pairs.
+
+This means similarity and magnitude are measuring different things. A model can undergo very large changes while still moving in a relatively similar direction to another model. Likewise, two models can have very small deltas while moving in almost completely different directions.
+
+Right now the clearest signal for distinguishing the two groups is magnitude, not similarity.
+
+The layer-wise results make the story even more interesting because the shape of the similarity curve changes completely between the Qwen and Mistral families. That suggests the training procedure may influence not only how much a model changes, but also where in the network those changes become aligned or divergent.
+
+At this point my strongest conclusion is that delta magnitude appears to be the most reliable indicator separating the Qwen specialist models from conventional supervised fine-tunes. Similarity seems to vary much more independently than I originally expected.
+
+### Caveats
+
+- Excluded `model.embed_tokens.weight` and `lm_head.weight` (~0.9% of parameters) due to vocabulary mismatch (32000 → 32002, fine-tunes added chat template tokens)
+- Only one continued-pretrained example measured directly (Qwen Math, Qwen Coder); the LLaMA-2 reference (MetaMath-LLeMA at 0.017000) comes from literature
+- Tested directional similarity for clean SFT pairs but not for any other continued-pretrained pair besides Qwen Math/Coder
+- Have not directly shown causation between large magnitudes and merge failure; only correlation
+- Cosine similarity becomes numerically unstable when delta norms are very small (as seen in layernorm tensors); needed to exclude these for reliable statistics
+
+### Saved data
+
+- Magnitude analysis: Kaggle dataset `sriyaguttikonda/week11-day3-mistral-magnitudes`
+- Similarity analysis: Kaggle dataset `sriyaguttikonda/week11-day3-mistral-similarities`
+
+### Next step
+
+Tomorrow I want to do a magnitude vs similarity scatter plot across all data points (both Qwen and Mistral) to see if there's any correlation visible. If magnitude and similarity are truly independent dimensions as today's results suggest, the scatter should show no obvious pattern. If there's a hidden relationship, it would show up there.
