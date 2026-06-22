@@ -612,6 +612,18 @@ I also only tested one Mistral pair and one Qwen pair. More model pairs would ma
 
 And finally, the tokenizer and vocabulary handling differences are still sitting in the background. I don't think they explain the entire result, but they are part of the experiment and shouldn't be ignored.
 
+### Update (Week 12 Day 1): baseline attributions
+
+In the Day 5 caveats I noted that I hadn't tested the input models alone, so I couldn't fully attribute the merged model's errors to the merge itself. Week 12 Day 1 filled that gap with baseline runs of Mistral-Instruct alone and OpenHermes alone on the same two prompts.
+
+Updated attributions:
+
+**Math error (wrong common denominator 18):** Inherited from OpenHermes, not introduced by the merge. OpenHermes alone made the exact same error (used 18 as common denominator for fractions with denominator 12, which doesn't divide cleanly). The merge preserved OpenHermes' reasoning pattern.
+
+**Broken fibonacci code (KeyError on n ≥ 3):** Caused by the merge. OpenHermes alone produced a working memoized implementation. The merge actively destroyed that capability while keeping the surface structure of the code.
+
+So the Day 5 merge isn't a simple "averages capability" or "destroys capability" operation. It selectively preserves some parent patterns while destroying others, in ways that depend on tensor type and task. Full baseline data is in experiments/week12_baselines.md.
+
 ### Saved artifacts
 
 - Merged model: Kaggle Dataset sriyaguttikonda/week11-day5-mistral-ties-merged
