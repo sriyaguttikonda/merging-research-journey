@@ -1,4 +1,4 @@
-(merge) pmolugur@cpn-b02-24:/scratch/pmolugur/merging_project$ cat > /scratch/pmolugur/merging_project/RESULTS_math_sweep.md << 'MDEOF'
+
 # Experiment 1: Math-delta kappa sweep (Task Arithmetic)
 # merged = base + kappa*delta_Math + 1.0*delta_Coder
 # Qwen2.5-7B base, Math-Instruct + Coder-Instruct. Greedy, 400 tokens. CCR V100.
