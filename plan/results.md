@@ -65,5 +65,55 @@ cat > /scratch/pmolugur/merging_project/RESULTS_coder_sweep.md << 'MDEOF'
 
 ## STATUS: qualitative (N=2 prompts, eyeballed). HYPOTHESIS, not confirmed.
 ## NEXT: GSM8K subset for quantitative accuracy per kappa per sweep to confirm asymmetry.
+# Experiment 1b: Coder-delta kappa sweep (Task Arithmetic)
+# merged = base + 1.0*delta_Math + kappa*delta_Coder
+# Compare against Math sweep (RESULTS_math_sweep.md)
+
+| kappa | math prompt | code prompt |
+|-------|-------------|-------------|
+| 1.0   | gibberish (2222) [matches math k=1.0, consistency OK] | gibberish |
+| 0.8   | gibberish (121212)               | gibberish |
+| 0.6   | gibberish (10000)                | gibberish (1 line then collapse) |
+| 0.4   | coherent method but WRONG answer (36 not 36/7), loops | broken code, repetition |
+| 0.2   | coherent, correct method, trails off | coherent-ish, syntax errors, repetition |
+| 0.0   | coherent (base+Math)             | code degenerates into ``` repetition |
+
+## Finding — ASYMMETRY between the two sweeps
+- Shrinking MATH delta -> CLEAN full recovery by k=0.4 (correct answer + working code).
+- Shrinking CODER delta -> only PARTIAL improvement; never fully clean, code stays broken.
+- The two deltas are ~equal magnitude (Math 0.0161, Coder 0.0148, ~8% apart) yet NOT
+  equally responsible for the failure. Math delta appears more destabilizing.
+- Endpoint clue: base+Math-alone (coder k=0.0) shows code degeneration/repetition even
+  without a competing delta -> Math delta may carry instability on its own.
+- => Failure is asymmetric in the task vectors, NOT explained by norm magnitude alone.
+  Motivates looking at directional/structural differences, not just scale.
+
+## STATUS: qualitative (N=2 prompts, eyeballed). HYPOTHESIS, not confirmed.
+## NEXT: GSM8K subset for quantitative accuracy per kappa per sweep to confirm asymmetry.
 MDEOF
 cat /scratch/pmolugur/merging_project/RESULTS_coder_sweep.md
+# Experiment 1b: Coder-delta kappa sweep (Task Arithmetic)
+# merged = base + 1.0*delta_Math + kappa*delta_Coder
+# Compare against Math sweep (RESULTS_math_sweep.md)
+
+| kappa | math prompt | code prompt |
+|-------|-------------|-------------|
+| 1.0   | gibberish (2222) [matches math k=1.0, consistency OK] | gibberish |
+| 0.8   | gibberish (121212)               | gibberish |
+| 0.6   | gibberish (10000)                | gibberish (1 line then collapse) |
+| 0.4   | coherent method but WRONG answer (36 not 36/7), loops | broken code, repetition |
+| 0.2   | coherent, correct method, trails off | coherent-ish, syntax errors, repetition |
+| 0.0   | coherent (base+Math)             | code degenerates into ``` repetition |
+
+## Finding — ASYMMETRY between the two sweeps
+- Shrinking MATH delta -> CLEAN full recovery by k=0.4 (correct answer + working code).
+- Shrinking CODER delta -> only PARTIAL improvement; never fully clean, code stays broken.
+- The two deltas are ~equal magnitude (Math 0.0161, Coder 0.0148, ~8% apart) yet NOT
+  equally responsible for the failure. Math delta appears more destabilizing.
+- Endpoint clue: base+Math-alone (coder k=0.0) shows code degeneration/repetition even
+  without a competing delta -> Math delta may carry instability on its own.
+- => Failure is asymmetric in the task vectors, NOT explained by norm magnitude alone.
+  Motivates looking at directional/structural differences, not just scale.
+
+## STATUS: qualitative (N=2 prompts, eyeballed). HYPOTHESIS, not confirmed.
+## NEXT: GSM8K subset for quantitative accuracy per kappa per sweep to confirm asymmetry.
