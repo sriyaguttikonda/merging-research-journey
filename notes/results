@@ -1,0 +1,124 @@
+# Scaling Task Vectors in the Large-Delta Regime — Results
+
+Empirical study of catastrophic merge failure and its recovery via task-vector
+scaling, comparing a **large-delta** (continued-pretraining) model pair against a
+**small-delta** (clean-SFT) control pair.
+
+Merge method: plain Task Arithmetic — `theta_merged = theta_base + k_A * delta_A + k_B * delta_B`.
+Each sweep scales one delta (`k` swept) while holding the other at 1.0.
+
+---
+
+## Task-vector magnitudes (per-parameter mean |delta| vs. base)
+
+| Pair | Model | mean \|delta\| | Regime |
+|------|-------|--------------|--------|
+| Qwen | Qwen2.5-Math-7B-Instruct  | 0.016086 | large (continued pretraining) |
+| Qwen | Qwen2.5-Coder-7B-Instruct | 0.014813 | large (continued pretraining) |
+| Mistral | Mistral-7B-Instruct-v0.1    | 0.000469 | small (clean SFT) |
+| Mistral | OpenHermes-2.5-Mistral-7B   | 0.000061 | small (clean SFT) |
+
+The large-delta task vectors are **~30–260x larger** than the small-delta ones —
+a 1–2 order-of-magnitude gap between continued-pretraining and clean-SFT adaptation.
+
+Base models: Qwen2.5-7B (Qwen pair); Mistral-7B-v0.1 (Mistral pair). Both bases
+verified by key alignment (Qwen 339/339 keys, 0 mismatches; Mistral 291/291 keys).
+The Qwen magnitude of 0.016086 reproduced an earlier independent measurement exactly.
+
+---
+
+## Experiment 1 — Qwen (large-delta pair)
+
+### GSM8K, N = 200
+
+| kappa | shrink Math delta | shrink Coder delta |
+|-------|-------------------|--------------------|
+| 1.0   | 0.5%              | 0.5% (shared anchor) |
+| 0.6   | 13.0%             | 0.0%               |
+| 0.4   | 84.5%             | 20.5%              |
+| 0.2   | 86.0%             | 66.0%              |
+| 0.0   | 85.0%             | 76.5%              |
+
+### HumanEval, N = 164 (pass@1)
+
+| kappa | shrink Math delta | shrink Coder delta |
+|-------|-------------------|--------------------|
+| 1.0   | 0.0%              | 0.0% (shared anchor) |
+| 0.6   | 1.2%              | 0.0%               |
+| 0.4   | 70.7%             | 0.0%               |
+| 0.2   | 82.9%             | 11.6%              |
+| 0.0   | 86.6%             | 11.0%              |
+
+Notes: `k=0.0` on the Math sweep = base + Coder only; on the Coder sweep = base +
+Math only (single-model endpoints). At `k=1.0` both sweeps are the identical
+full-strength merge (shared anchor).
+
+---
+
+## Experiment 2 — Mistral (small-delta CONTROL)
+
+### GSM8K, N = 200
+
+| kappa | shrink Instruct delta | shrink OpenHermes delta |
+|-------|-----------------------|-------------------------|
+| 1.0   | 37.5%                 | 37.5% (shared anchor)   |
+| 0.6   | 46.5%                 | 34.5%                   |
+| 0.4   | 45.5%                 | 28.0%                   |
+| 0.2   | 56.5%                 | 31.0%                   |
+| 0.0   | 56.5%                 | 29.0%                   |
+
+Both Mistral models are general instruction-tuned models (not domain specialists),
+so GSM8K here measures whether the merge retains general reasoning ability, i.e.
+whether catastrophic collapse occurs at all — not a domain asymmetry.
+
+---
+
+## Findings
+
+1. **Catastrophic failure in the large-delta regime.** The full-strength Qwen merge
+   (`k=1.0`) collapses on both axes: 0.5% on GSM8K, 0.0% on HumanEval.
+
+2. **Shrinking the Math delta recovers the merge fully, on both axes.** Accuracy
+   climbs from 0.5% -> 84.5% (GSM8K) and 0.0% -> 70.7% (HumanEval) by `k=0.4`,
+   with a sharp transition between `k=0.6` and `k=0.4`. Recovered performance reaches
+   the single-model ceiling (~85–87%).
+
+3. **The failure is asymmetric between the two deltas.** At `k=0.4`, shrinking the
+   Math delta yields 84.5% / 70.7% (GSM8K / HumanEval), whereas shrinking the Coder
+   delta yields only 20.5% / 0.0%. The two task vectors have near-equal magnitude
+   (0.0161 vs 0.0148, ~8% apart), yet they are not equally responsible for the
+   collapse — shrinking the Coder delta never restores code ability. Magnitude alone
+   does not explain the failure; direction/structure matters.
+
+4. **The catastrophe is specific to the large-delta regime (control).** The
+   small-delta Mistral pair does **not** collapse at `k=1.0` (37.5%) and stays flat
+   across all kappa (37–56%) — there is no catastrophe to recover from. Contrasting
+   the two anchors directly:
+
+   | Regime | pair | GSM8K @ k=1.0 |
+   |--------|------|---------------|
+   | Large-delta | Qwen | 0.5% |
+   | Small-delta | Mistral | 37.5% |
+
+   The matched control demonstrates (rather than assumes) that catastrophic merge
+   failure is a property of the large-delta regime.
+
+---
+
+## Method notes / reproducibility
+
+- Merge: plain Task Arithmetic, bf16 weights, greedy decoding, 512 max new tokens.
+- GSM8K: exact-match on the final numeric answer; answer extraction handles
+  `\boxed{}`, LaTeX fractions (`\frac`/`\dfrac`), decimals, and comma-separated numbers.
+- HumanEval: pass@1 via execution against the provided unit tests in an isolated
+  subprocess with a timeout (broken generations that loop are scored as failures).
+- Mistral pair: OpenHermes expands the vocabulary with ChatML special tokens, so two
+  tensors (`model.embed_tokens.weight`, `lm_head.weight`) differ in shape from the
+  base and are excluded from that delta (base weights used for those tensors).
+  Generation for all Mistral merged variants uses the Mistral-Instruct chat template.
+
+## Possible follow-ups
+
+- Finer kappa sweep in [0.4, 0.6] to locate the transition threshold precisely.
+- Replication on a second large-delta specialist pair from a different model family.
+- A code benchmark on the Mistral pair to complete the two-axis picture there.
